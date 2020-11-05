@@ -18,71 +18,12 @@
 
 package org.apache.flink.table.expressions
 
-import org.apache.flink.table.validate.FunctionCatalog
-
-import scala.collection.JavaConverters._
-
 /**
   * Bridges between API [[Expression]]s (for both Java and Scala) and final expression stack.
   */
-class ExpressionBridge[E <: Expression](
-    functionCatalog: FunctionCatalog,
-    finalVisitor: ExpressionVisitor[E]) {
-
+class ExpressionBridge[E <: Expression](finalVisitor: ExpressionVisitor[E]) {
   def bridge(expression: Expression): E = {
-    // resolve calls
-    val resolvedExpressionTree = expression.accept(UnresolvedCallResolver)
-
     // convert to final expressions
-    resolvedExpressionTree.accept(finalVisitor)
-  }
-
-  /**
-    * Resolves calls with function names to calls with actual function definitions.
-    */
-  private object UnresolvedCallResolver extends ApiExpressionVisitor[Expression] {
-
-    override def visitTableReference(tableReference: TableReferenceExpression): Expression = {
-      tableReference
-    }
-
-    override def visitUnresolvedCall(unresolvedCall: UnresolvedCallExpression): Expression = {
-      val resolvedDefinition = functionCatalog.lookupFunction(unresolvedCall.getUnresolvedName)
-      new CallExpression(
-        resolvedDefinition,
-        unresolvedCall.getChildren.asScala.map(_.accept(this)).asJava)
-    }
-
-    override def visitCall(call: CallExpression): Expression = {
-      new CallExpression(
-        call.getFunctionDefinition,
-        call.getChildren.asScala.map(_.accept(this)).asJava)
-    }
-
-    override def visitSymbol(symbolExpression: SymbolExpression): Expression = {
-      symbolExpression
-    }
-
-    override def visitValueLiteral(valueLiteralExpression: ValueLiteralExpression): Expression = {
-      valueLiteralExpression
-    }
-
-    override def visitUnresolvedField(fieldReference: UnresolvedFieldReferenceExpression)
-      : Expression = {
-      fieldReference
-    }
-
-    override def visitFieldReference(fieldReference: FieldReferenceExpression): Expression = {
-      fieldReference
-    }
-
-    override def visitTypeLiteral(typeLiteral: TypeLiteralExpression): Expression = {
-      typeLiteral
-    }
-
-    override def visitNonApiExpression(other: Expression): Expression = {
-      // unsupported expressions (e.g. planner expressions) can pass unmodified
-      other
-    }
+    expression.accept(finalVisitor)
   }
 }
